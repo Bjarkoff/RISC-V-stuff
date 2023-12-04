@@ -1,0 +1,154 @@
+Q1
+How many “Example” lines does this program print?
+
+void try()
+{
+    if (fork() == 0) {
+        fork(); 
+        fork();
+        printf("Example\n");
+        return;
+    }
+    return;
+}
+
+int main()
+{
+    try();
+    printf("Example\n");
+}
+
+try() is run. fork() == 0 is not correct in parent, here child ID is returned, so
+no 'Example\n' there. But a child process is created, and enters the 'if', since
+the child returns 0 in fork(). The child1 then creates child1.1 and child 1.2, 
+prints one line itself. chidl 1.1 creates child1.1.1, while 
+1 example. But second fork() is run, creates another one. So I think it is
+3+2+1 and then the final one in main, and the parent-one, so 8 in total.
+
+
+Q2
+One of your colleagues is thinking of using signals to allow a parent process to count events 
+that occur in a child process. The idea is to notify the parent each time an event occurs 
+by sending it a signal and letting the parent’s signal handler increment a global 
+counter variable, which the parent can then inspect after the child has terminated. 
+However, when he runs the test program shown below, he discovers that when the parent 
+calls printf, counter always has a value of 2, even though the child has sent five signals 
+to the parent. Perplexed, he comes to you for help. Can you explain the bug?
+
+int counter = 0;
+
+void handler(int sig)
+{
+    counter++;
+    sleep(1); /* Do some work in the handler */
+    return;
+}
+
+int main()
+{
+    int i;
+    signal(SIGUSR2, handler);
+
+    if (fork() == 0) { /* Child */
+        for (i = 0; i < 5; i++) {
+            kill(getppid(), SIGUSR2);
+            printf("sent SIGUSR2 to parent\n");
+        }
+        exit(0);
+    }
+    wait(NULL);
+    printf("counter=%d\n", counter);
+    exit(0);
+}
+Q3
+The program below has a bug. The thread is supposed to sleep for 1 second and then print a string. 
+However, when we run it on our system, nothing prints. Why?
+
+/* WARNING: This code is buggy! */
+void *thread(void *vargp);
+
+int main()
+{
+    pthread_t tid;
+    pthread_create(&tid, NULL, thread, NULL);
+    exit(0);
+}
+
+/* Thread routine */
+void *thread(void *vargp)
+{
+    sleep(1);
+    printf("Hello, world!\n");
+    return NULL;
+}
+
+The issue with this program lies in the way it manages its threads, 
+particularly how it terminates. When the main() function calls exit(0), 
+it causes the entire process to exit immediately. This includes all threads 
+that the process has created. Since the main() function doesn't wait 
+for the newly created thread to complete its execution, the process 
+exits before the thread has a chance to run its sleep and print statements.
+
+To fix this bug, you should make sure that the main() 
+function waits for the thread to finish its execution before exiting. 
+This can be achieved by using pthread_join(). The pthread_join() 
+function waits for the specified thread to terminate. 
+When the thread terminates, main() can then safely exit.
+
+
+Q4
+You can fix the code in Q3 by replacing the main functions exit function with one of two 
+different Pthreads function calls. Which ones?
+
+pthread_join() eller pthread_exit();
+
+Q5
+Using the progress graph in progress.png, classify the following three trajectories as either safe or unsafe.
+
+A. H2, L2, U2, H1, L1, S2, U1, S1, T1, T2 -- unsafe, enters unsafe region in L1.
+B. H2, H1, L1, U1, S1, L2, T1, U2, S2, T2 -- safe
+C. H1, L1, H2, L2, U2, S2, U1, S1, T1, T2 -- unsafe, enters unsafe region in L2.
+
+Q6
+Some network programming texts suggest the following approach for reading and writing sockets: 
+Before interacting with the client, open two standard I/O streams on the same open 
+connected socket descriptor, one for reading and one for writing:
+
+FILE *fpin, *fpout;
+
+fpin = fdopen(sockfd, "r");
+fpout = fdopen(sockfd, "w");
+When the server finishes interacting with the client, close both streams as follows:
+
+fclose(fpin);
+fclose(fpout);
+
+However, if you try this approach in a concurrent server based on threads, 
+you will create a deadly race condition. Explain.
+
+I believe the answer is: All threads open on the same socket descriptor,
+but then they can all read and write in a bunch of weirdness. Since closing a 
+file stream also closes the underlying file descriptor.
+
+chatGPT: Race Condition: In a concurrent server where multiple threads may be 
+interacting with the same socket descriptor through their own FILE * streams, 
+one thread could close its output stream (fpout) while another thread 
+is still working with its input stream (fpin). This would lead to a race condition 
+where one thread might unexpectedly find its socket closed by another thread.
+
+Q7
+Can the following program deadlock? Why or why not?
+
+Initially: a = 1, b = 1, c = 1.
+    Thread 1:       Thread 2:
+        P(a);           P(c);
+        P(b);           P(b);
+        V(b);           V(b);
+        P(c);           V(c);
+        V(c);
+        V(a);
+
+I don't see the deadlock concerning a, since it is only with regards to thread 1.
+I don't see a deadlock with b, since both threads release that lock immediately
+after retrieving it. And thus, there cannot be a deadlock with c either.
+P is 'proberen', V is 'Verhogen'.
